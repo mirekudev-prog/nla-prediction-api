@@ -1,0 +1,117 @@
+name: Nightly Predictions
+
+on:
+  schedule:
+    # Runs at 2 AM UTC daily (9 PM EST / 10 PM Ghana previous day)
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: write  # Needed to commit predictions
+
+jobs:
+  generate-predictions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install -q requests
+      
+      - name: Generate predictions for all games
+        id: predict
+        env:
+          API_URL: https://vercel-deploy-phi-umber.vercel.app
+        run: |
+          cat > generate.py << 'PYEOF'
+          import requests
+          import json
+          from datetime import datetime
+          
+          API_URL = "https://vercel-deploy-phi-umber.vercel.app"
+          GAMES = [
+            "Monday Special", "Lucky Tuesday", "MidWeek",
+            "Fortune Thursday", "Friday Bonanza",
+            "National Weekly", "Sunday Aseda"
+          ]
+          MODELS = ["gap_cold", "frequency", "random"]
+          
+          all_results = {}
+          
+          for game in GAMES:
+            all_results[game] = {}
+            for model in MODELS:
+              try:
+                resp = requests.post(
+                  f"{API_URL}/predict",
+                  json={"game": game, "model": model, "top_k": 7},
+                  timeout=30
+                )
+                if resp.status_code == 200:
+                  data = resp.json()
+                  all_results[game][model] = {
+                    "numbers": [n["number"] for n in data["top_numbers"]],
+                    "metrics": data["metrics"],
+                    "latest_draw": data["latest_draw"],
+                    "next_draw_index": data["next_draw_index"]
+                  }
+                  print(f"✓ {game} - {model}: {all_results[game][model]['numbers']}")
+                else:
+                  print(f"✗ {game} - {model}: {resp.status_code}")
+              except Exception as e:
+                print(f"✗ {game} - {model}: {e}")
+          
+          # Save to file
+          output = {
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "predictions": all_results
+          }
+          
+          with open("predictions/latest.json", "w") as f:
+            json.dump(output, f, indent=2)
+          
+          # Also create dated archive
+          date_str = datetime.utcnow().strftime("%Y-%m-%d")
+          with open(f"predictions/archive/{date_str}.json", "w") as f:
+            json.dump(output, f, indent=2)
+          
+          print(f"\nSaved predictions/latest.json and predictions/archive/{date_str}.json")
+          print(json.dumps(output, indent=2))
+          PYEOF
+          python generate.py
+      
+      - name: Commit predictions
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git add predictions/
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            DATE=$(date -u +"%Y-%m-%d")
+            git commit -m "🤖 Nightly predictions for $DATE"
+            git push
+            echo "Predictions committed and pushed"
+          fi
+      
+      - name: Summary
+        run: |
+          echo "## Nightly Predictions Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Generated at: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat predictions/latest.json | jq -r '.predictions | to_entries[] | "### \(.key)\n\(.value | to_entries[] | "- **\(.key)**: \(.value.numbers | join(", "))")"' >> $GITHUB_STEP_SUMMARY
