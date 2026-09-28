@@ -1,10 +1,10 @@
-name: Daily Prediction for Today's Game
+name: Daily Prediction with Auto-Fetch
 
 on:
   schedule:
-    # Runs at 6 AM UTC daily (1 AM EST / 6 AM Ghana time - before evening draws)
-    - cron: '0 6 * * *'
-  workflow_dispatch:  # Allow manual trigger
+    # Runs at 2 AM UTC daily (before evening draws in Ghana)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,10 +12,10 @@ permissions:
 jobs:
   daily-prediction:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -26,115 +26,315 @@ jobs:
         with:
           python-version: '3.12'
       
-      - name: Install dependencies
-        run: |
-          pip install -q requests
+      - name: Install deps
+        run: pip install -q requests pg8000
       
-      - name: Determine today's game
-        id: today
+      - name: Determine games
+        id: schedule
         run: |
-          # Ghana is UTC+0, so UTC date = Ghana date
-          DAY_OF_WEEK=$(date -u +%A)
-          
-          # Map day to game
-          case $DAY_OF_WEEK in
-            Monday) GAME="Monday Special" ;;
-            Tuesday) GAME="Lucky Tuesday" ;;
-            Wednesday) GAME="MidWeek" ;;
-            Thursday) GAME="Fortune Thursday" ;;
-            Friday) GAME="Friday Bonanza" ;;
-            Saturday) GAME="National Weekly" ;;
-            Sunday) GAME="Sunday Aseda" ;;
-            *) echo "Unexpected day"; exit 1 ;;
+          DAY=$(date -u +%A)
+          case $DAY in
+            Monday) TODAY="Monday Special"; YESTERDAY="Sunday Aseda" ;;
+            Tuesday) TODAY="Lucky Tuesday"; YESTERDAY="Monday Special" ;;
+            Wednesday) TODAY="MidWeek"; YESTERDAY="Lucky Tuesday" ;;
+            Thursday) TODAY="Fortune Thursday"; YESTERDAY="MidWeek" ;;
+            Friday) TODAY="Friday Bonanza"; YESTERDAY="Fortune Thursday" ;;
+            Saturday) TODAY="National Weekly"; YESTERDAY="Friday Bonanza" ;;
+            Sunday) TODAY="Sunday Aseda"; YESTERDAY="National Weekly" ;;
           esac
-          
           DATE=$(date -u +%Y-%m-%d)
-          echo "game=$GAME" >> $GITHUB_OUTPUT
+          YEST_DATE=$(date -u -d "yesterday" +%Y-%m-%d)
+          echo "today=$TODAY" >> $GITHUB_OUTPUT
+          echo "yesterday=$YESTERDAY" >> $GITHUB_OUTPUT
           echo "date=$DATE" >> $GITHUB_OUTPUT
-          echo "day=$DAY_OF_WEEK" >> $GITHUB_OUTPUT
+          echo "yest_date=$YEST_DATE" >> $GITHUB_OUTPUT
+          echo "day=$DAY" >> $GITHUB_OUTPUT
       
-      - name: Generate prediction for today's game
+      - name: Fetch yesterday's results
+        id: fetch
+        run: |
+          YESTERDAY="${{ steps.schedule.outputs.yesterday }}"
+          YEST_DATE="${{ steps.schedule.outputs.yest_date }}"
+          
+          DATA="data[Lottery][name]=$YESTERDAY&data[Lottery][date]=$YEST_DATE&_method=POST"
+          RESP=$(curl -s -X POST "https://www.ghanayello.com/lottery/results/history" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -H "Referer: https://www.ghanayello.com/lottery/results/history" \
+            -H "User-Agent: Mozilla/5.0" \
+            -d "$DATA")
+          
+          # Parse with Python
+          python3 << 'EOF'
+import sys, re
+from html.parser import HTMLParser
+
+class Parser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.in_table = False
+        self.in_row = False
+        self.in_cell = False
+        self.cell_idx = 0
+        self.current = {}
+        self.draws = []
+        self.row_count = 0
+    
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "table": self.in_table = True
+        elif tag == "tr" and self.in_table:
+            self.in_row = True; self.cell_idx = 0; self.current = {}
+        elif tag in ("td", "th") and self.in_row:
+            self.in_cell = True
+            self.current[f"cell{self.cell_idx}_title"] = attrs.get("title", "")
+            self.current[f"cell{self.cell_idx}_data"] = ""
+        elif tag == "div" and self.in_cell:
+            cls = attrs.get("class", "")
+            if "lotto_no_r" in cls or "lotto_no_w" in cls:
+                self.current.setdefault("numbers", []).append("")
+    
+    def handle_endtag(self, tag):
+        if tag in ("td", "th") and self.in_cell:
+            self.in_cell = False; self.cell_idx += 1
+        elif tag == "tr" and self.in_row:
+            self.in_row = False
+            if self.row_count > 0 and self.current: self.draws.append(self.current)
+            self.row_count += 1
+        elif tag == "table": self.in_table = False
+    
+    def handle_data(self, data):
+        if self.in_cell:
+            self.current[f"cell{self.cell_idx}_data"] = (self.current.get(f"cell{self.cell_idx}_data", "") + data).strip()
+
+parser = Parser()
+parser.feed(sys.argv[1])
+
+if parser.draws:
+    row = parser.draws[0]
+    win_title = row.get("cell2_title", "")
+    mach_title = row.get("cell3_title", "")
+    date_data = row.get("cell0_data", "")
+    
+    win_m = re.search(r"Winning Numbers\s+([\d\-]+)", win_title)
+    mach_m = re.search(r"Machine Numbers\s+([\d\-]+)", mach_title)
+    
+    if win_m: print(f"WIN={win_m.group(1)}")
+    if mach_m: print(f"MACH={mach_m.group(1)}")
+    if date_data: print(f"DATE={date_data}")
+EOF
+          
+          WIN=$(python3 -c "
+import sys, re
+from html.parser import HTMLParser
+
+class Parser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.in_table = False
+        self.in_row = False
+        self.in_cell = False
+        self.cell_idx = 0
+        self.current = {}
+        self.draws = []
+        self.row_count = 0
+    
+    def handle_starttag(self, tag, attrs):
+        attrs_dict = dict(attrs)
+        if tag == 'table': self.in_table = True
+        elif tag == 'tr' and self.in_table:
+            self.in_row = True; self.cell_idx = 0; self.current = {}
+        elif tag in ('td', 'th') and self.in_row:
+            self.in_cell = True
+            self.current[f'cell{self.cell_idx}_title'] = dict(attrs).get('title', '')
+            self.current[f'cell{self.cell_idx}_data'] = ''
+        elif tag == 'div' and self.in_cell:
+            cls = dict(attrs).get('class', '')
+            if 'lotto_no_r' in cls or 'lotto_no_w' in cls:
+                self.current.setdefault('numbers', []).append('')
+    
+    def handle_endtag(self, tag):
+        if tag in ('td', 'th') and self.in_cell:
+            self.in_cell = False; self.cell_idx += 1
+        elif tag == 'tr' and self.in_row:
+            self.in_row = False
+            if self.row_count > 0 and self.current: self.draws.append(self.current)
+            self.row_count += 1
+        elif tag == 'table': self.in_table = False
+    
+    def handle_data(self, data):
+        if self.in_cell:
+            self.current[f'cell{self.cell_idx}_data'] = (self.current.get(f'cell{self.cell_idx}_data', '') + data).strip()
+
+parser = Parser()
+parser.feed(sys.argv[1])
+if parser.draws:
+    row = parser.draws[0]
+    win_title = row.get('cell2_title', '')
+    win_m = re.search(r'Winning Numbers\s+([\d\-]+)', win_title)
+    if win_m: print(win_m.group(1))
+" "$RESP")
+          
+          MACH=$(python3 -c "
+import sys, re
+from html.parser import HTMLParser
+
+class Parser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.in_table = False
+        self.in_row = False
+        self.in_cell = False
+        self.cell_idx = 0
+        self.current = {}
+        self.draws = []
+        self.row_count = 0
+    
+    def handle_starttag(self, tag, attrs):
+        attrs_dict = dict(attrs)
+        if tag == 'table': self.in_table = True
+        elif tag == 'tr' and self.in_table:
+            self.in_row = True; self.cell_idx = 0; self.current = {}
+        elif tag in ('td', 'th') and self.in_row:
+            self.in_cell = True
+            self.current[f'cell{self.cell_idx}_title'] = dict(attrs).get('title', '')
+            self.current[f'cell{self.cell_idx}_data'] = ''
+        elif tag == 'div' and self.in_cell:
+            cls = dict(attrs).get('class', '')
+            if 'lotto_no_r' in cls or 'lotto_no_w' in cls:
+                self.current.setdefault('numbers', []).append('')
+    
+    def handle_endtag(self, tag):
+        if tag in ('td', 'th') and self.in_cell:
+            self.in_cell = False; self.cell_idx += 1
+        elif tag == 'tr' and self.in_row:
+            self.in_row = False
+            if self.row_count > 0 and self.current: self.draws.append(self.current)
+            self.row_count += 1
+        elif tag == 'table': self.in_table = False
+    
+    def handle_data(self, data):
+        if self.in_cell:
+            self.current[f'cell{self.cell_idx}_data'] = (self.current.get(f'cell{self.cell_idx}_data', '') + data).strip()
+
+parser = Parser()
+parser.feed(sys.argv[1])
+if parser.draws:
+    row = parser.draws[0]
+    mach_title = row.get('cell3_title', '')
+    mach_m = re.search(r'Machine Numbers\s+([\d\-]+)', mach_title)
+    if mach_m: print(mach_m.group(1))
+" "$RESP")
+          
+          if [ -z "$WIN" ]; then
+            echo "No results for $YESTERDAY on $YEST_DATE"
+            exit 1
+          fi
+          
+          echo "win=$WIN" >> $GITHUB_OUTPUT
+          echo "mach=$MACH" >> $GITHUB_OUTPUT
+          echo "Fetched: $WIN | Machine: $MACH"
+      
+      - name: Save to database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python3 << 'PYEOF'
+import os, sys, pg8000
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+game = sys.argv[1]
+win = sys.argv[2]
+mach = sys.argv[3] if len(sys.argv) > 3 else ""
+date_str = sys.argv[4]
+
+# Parse DB URL
+url = DATABASE_URL.replace("postgresql://", "")
+creds, rest = url.split("@", 1)
+user, pwd = creds.split(":", 1)
+host_port, db = rest.split("/", 1)[0], rest.split("/", 1)[1].split("?")[0]
+host, port = (host_port.split(":") + ["5432"])[:2]
+
+win_nums = [int(x) for x in win.split("-")]
+mach_nums = [int(x) for x in mach.split("-")] if mach else [None]*5
+
+# Pad to 5
+win_nums += [0]*(5-len(win_nums))
+mach_nums += [None]*(5-len(mach_nums))
+
+conn = pg8000.connect(user=user, password=pwd, host=host, port=int(port), database=db, ssl_context=True)
+cur = conn.cursor()
+
+# Check exists
+cur.execute("SELECT 1 FROM draws WHERE game_name=%s AND draw_date=%s", (game, date_str))
+if not cur.fetchone():
+    cur.execute("SELECT COALESCE(MAX(seq_id),0)+1 FROM draws")
+    seq = cur.fetchone()[0]
+    cur.execute("""INSERT INTO draws (seq_id, game_name, day_of_week, draw_date,
+                win_n1,win_n2,win_n3,win_n4,win_n5,win_n6,
+                mach_n1,mach_n2,mach_n3,mach_n4,mach_n5,mach_n6,event_id)
+                VALUES (%s,%s,%s,%s, %s,%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s)""",
+        (seq, game, {"Monday Special":"Monday","Lucky Tuesday":"Tuesday","MidWeek":"Wednesday",
+                      "Fortune Thursday":"Thursday","Friday Bonanza":"Friday",
+                      "National Weekly":"Saturday","Sunday Aseda":"Sunday"}[game],
+         date_str,
+         win_nums[0],win_nums[1],win_nums[2],win_nums[3],win_nums[4],0,
+         mach_nums[0],mach_nums[1],mach_nums[2],mach_nums[3],mach_nums[4],None,
+         "Lotto Draw Event"))
+    conn.commit()
+    print(f"Saved: {game} {date_str} Win={win} Mach={mach}")
+else:
+    print(f"Already exists: {game} {date_str}")
+
+cur.close(); conn.close()
+PYEOF
+      
+      - name: Generate prediction for today
         id: predict
         env:
           API_URL: https://vercel-deploy-phi-umber.vercel.app
         run: |
-          GAME="${{ steps.today.outputs.game }}"
-          DATE="${{ steps.today.outputs.date }}"
-          
-          # Use the best performing model (gap_cold based on backtests)
+          TODAY="${{ steps.schedule.outputs.today }}"
+          DATE="${{ steps.schedule.outputs.date }}"
           RESP=$(curl -s -X POST "$API_URL/predict" \
             -H "Content-Type: application/json" \
-            -d "{\"game\": \"$GAME\", \"model\": \"gap_cold\", \"top_k\": 7}")
+            -d "{\"game\": \"$TODAY\", \"model\": \"gap_cold\", \"top_k\": 7}")
           
           if echo "$RESP" | grep -q '"detail"'; then
-            echo "❌ Prediction failed: $RESP"
-            exit 1
+            echo "Prediction failed: $RESP"; exit 1
           fi
           
-          NUMBERS=$(echo "$RESP" | python -c "import sys, json; d=json.load(sys.stdin); print(' '.join(str(n['number']) for n in d['top_numbers']))")
-          METRICS=$(echo "$RESP" | python -c "import sys, json; d=json.load(sys.stdin); m=d['metrics']; print(f\"Odd/Even: {m['odd_count']}/{m['even_count']} | High/Low: {m['high_count']}/{m['low_count']} | Sum Digits: {m['sum_digits']} | Avg: {m['average']:.1f} | Spread: {m['spread']}\")")
+          NUMBERS=$(echo "$RESP" | python -c "import sys,json; d=json.load(sys.stdin); print(' '.join(str(n['number']) for n in d['top_numbers']))")
+          METRICS=$(echo "$RESP" | python -c "import sys,json; d=json.load(sys.stdin); m=d['metrics']; print(f\"Odd/Even: {m['odd_count']}/{m['even_count']} | High/Low: {m['high_count']}/{m['low_count']} | Sum: {m['sum_digits']} | Avg: {m['average']:.1f} | Spread: {m['spread']}\")")
           
           echo "numbers=$NUMBERS" >> $GITHUB_OUTPUT
           echo "metrics=$METRICS" >> $GITHUB_OUTPUT
           echo "raw=$RESP" >> $GITHUB_OUTPUT
       
-      - name: Save prediction to file
+      - name: Save prediction
         run: |
-          DATE="${{ steps.today.outputs.date }}"
-          GAME="${{ steps.today.outputs.game }}"
-          DAY="${{ steps.today.outputs.day }}"
+          DATE="${{ steps.schedule.outputs.date }}"
+          GAME="${{ steps.schedule.outputs.today }}"
+          DAY="${{ steps.schedule.outputs.day }}"
           NUMBERS="${{ steps.predict.outputs.numbers }}"
           METRICS="${{ steps.predict.outputs.metrics }}"
           RAW="${{ steps.predict.outputs.raw }}"
           
-          # Create predictions directory if not exists
           mkdir -p predictions
-          
-          # Save daily prediction file
           cat > "predictions/${DATE}.json" << EOF
           {
-            "date": "${DATE}",
-            "day": "${DAY}",
-            "game": "${GAME}",
-            "model": "gap_cold",
-            "numbers": [$(echo "${NUMBERS}" | sed 's/ /, /g')],
-            "metrics": "${METRICS}",
-            "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            "date": "${DATE}", "day": "${DAY}", "game": "${GAME}",
+            "model": "gap_cold", "numbers": [$(echo "$NUMBERS" | sed 's/ /, /g')],
+            "metrics": "${METRICS}", "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           }
           EOF
-          
-          # Also save raw API response for debugging
-          echo "${RAW}" > "predictions/${DATE}_raw.json"
-          
-          echo "✅ Saved prediction for ${GAME} on ${DATE}: ${NUMBERS}"
+          echo "$RAW" > "predictions/${DATE}_raw.json"
       
-      - name: Commit and push predictions
+      - name: Commit
         run: |
-          DATE="${{ steps.today.outputs.date }}"
-          GAME="${{ steps.today.outputs.game }}"
-          DAY="${{ steps.today.outputs.day }}"
-          
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          git add predictions/${DATE}.json predictions/${DATE}_raw.json
-          
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "🤖 Daily prediction for ${GAME} on ${DATE} (${DAY})"
+          git add predictions/
+          if ! git diff --staged --quiet; then
+            git commit -m "Daily: ${{ steps.schedule.outputs.today }} prediction for ${{ steps.schedule.outputs.date }} + fetched ${{ steps.schedule.outputs.yesterday }} results"
             git push
-            echo "✅ Pushed prediction to repository"
           fi
-      
-      - name: Summary
-        run: |
-          echo "## Daily Prediction Generated" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Date:** ${{ steps.today.outputs.date }} (${{ steps.today.outputs.day }})" >> $GITHUB_STEP_SUMMARY
-          echo "**Game:** ${{ steps.today.outputs.game }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Model:** gap_cold" >> $GITHUB_STEP_SUMMARY
-          echo "**Numbers:** ${{ steps.predict.outputs.numbers }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Metrics:** ${{ steps.predict.outputs.metrics }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Saved to: \`predictions/${{ steps.today.outputs.date }}.json\`" >> $GITHUB_STEP_SUMMARY
