@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Ghana NLA 5/90 lottery predictions - simple, free, no nonsense">
+  <title>NLA 5/90 Predictions</title>
+  <meta name="api-base" content="https://vercel-deploy-phi-umber.vercel.app">
+  <style>
+    /* ── reset ── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #faf9f6;
+      color: #1a1a2e;
+      min-height: 100vh;
+      padding: 24px 16px;
+      line-height: 1.5;
+    }
+    
+    .wrap { max-width: 420px; margin: 0 auto; }
+    
+    /* ── header ── */
+    header {
+      text-align: center;
+      padding: 16px 0 8px;
+    }
+    
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+    
+    .tagline {
+      font-size: 14px;
+      color: #64748b;
+      font-weight: 400;
+    }
+    
+    /* ── game picker ── */
+    .day-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin: 24px 0 16px;
+    }
+    
+    .day-btn {
+      flex: 1;
+      min-width: 72px;
+      padding: 10px 6px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+    
+    .day-btn:hover { border-color: #94a3b8; color: #475569; }
+    .day-btn.active {
+      border-color: #0ea5e9;
+      background: #f0f9ff;
+      color: #0ea5e9;
+    }
+    .day-btn .d { display: block; font-size: 9px; font-weight: 400; opacity: 0.7; margin-top: 2px; }
+    
+    /* ── model picker ── */
+    .model-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .model-btn {
+      flex: 1;
+      padding: 12px 8px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .model-btn:hover { border-color: #94a3b8; color: #475569; }
+    .model-btn.active {
+      border-color: #22c55e;
+      background: #f0fdf4;
+      color: #166534;
+    }
+    .model-btn .sub { display: block; font-size: 10px; font-weight: 400; opacity: 0.7; margin-top: 4px; }
+    
+    /* ── generate button ── */
+    .gen-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.08s, box-shadow 0.15s;
+    }
+    .gen-btn:active { transform: scale(0.985); }
+    .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .gen-btn.loading { background: #64748b; }
+    
+    /* ── results ── */
+    .result { display: none; margin-top: 20px; }
+    
+    .result-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 16px;
+    }
+    
+    .result-title { font-size: 16px; font-weight: 600; color: #0f172a; }
+    .result-meta { font-size: 11px; color: #94a3b8; }
+    
+    /* ── numbers ── */
+    .nums {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    
+    .ball {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(15,23,42,0.15);
+      animation: pop 0.3s ease-out backwards;
+    }
+    @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .ball:nth-child(1) { animation-delay: 0.04s; }
+    .ball:nth-child(2) { animation-delay: 0.08s; }
+    .ball:nth-child(3) { animation-delay: 0.12s; }
+    .ball:nth-child(4) { animation-delay: 0.16s; }
+    .ball:nth-child(5) { animation-delay: 0.2s; }
+    .ball:nth-child(6) { animation-delay: 0.24s; }
+    .ball:nth-child(7) { animation-delay: 0.28s; }
+    .ball.low  { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+    .ball.high { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+    
+    /* ── stats ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 14px;
+      background: #f8fafc;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+    .stat { text-align: center; }
+    .stat-val { font-size: 19px; font-weight: 700; color: #0f172a; }
+    .stat-label { font-size: 9px; color: #94a3b8; text-transform: uppercase; margin-top: 3px; letter-spacing: 0.3px; }
+    
+    /* ── last draw ── */
+    .last {
+      padding: 14px;
+      background: #eff6ff;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+    .last-title { font-size: 11px; color: #0ea5e9; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .last-balls { display: flex; gap: 5px; flex-wrap: wrap; }
+    .last-ball {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .last-ball.low  { background: #f97316; }
+    .last-ball.high { background: #ef4444; }
+    
+    /* ── footer ── */
+    footer {
+      font-size: 10px;
+      color: #94a3b8;
+      text-align: center;
+      margin-top: 20px;
+      line-height: 1.6;
+    }
+    
+    /* ── loading ── */
+    .loading { display: none; text-align: center; padding: 20px; }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #0ea5e9;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    /* ── error ── */
+    .err { display: none; padding: 12px 16px; background: #fef2f2; border-radius: 10px; color: #dc2626; font-size: 13px; text-align: center; }
+    
+    @media (max-width: 380px) {
+      .nums { gap: 5px; }
+      .ball { font-size: 15px; }
+      .stats { gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>NLA 5/90</h1>
+      <p class="tagline">Ghana National Lottery · free predictions</p>
+    </header>
+    
+    <div class="day-row" id="dayRow"></div>
+    
+    <div class="model-row" id="modelRow"></div>
+    
+    <button class="gen-btn" id="genBtn" onclick="generate()">Generate Numbers</button>
+    
+    <div class="loading" id="loading"><div class="spinner"></div><p>Thinking…</p></div>
+    <div class="err" id="err"></div>
+    
+    <div class="result" id="result">
+      <div class="result-head">
+        <div class="result-title" id="resultTitle">Prediction</div>
+        <div class="result-meta" id="resultMeta">Model · Game</div>
+      </div>
+      
+      <div class="nums" id="numsGrid"></div>
+      
+      <div class="stats" id="stats"></div>
+      
+      <div class="last" id="lastDraw" style="display:none;">
+        <div class="last-title">Last actual draw</div>
+        <div class="last-balls" id="lastBalls"></div>
+      </div>
+    </div>
+    
+    <footer>
+      For fun only · not financial advice · verify with official NLA sources
+    </footer>
+  </div>
+
+  <script>
+    const API = document.querySelector('meta[name="api-base"]')?.content || 'https://vercel-deploy-phi-umber.vercel.app';
+    
+    const GAMES = [
+      { k: 'Monday Special',    d: 'Mon' },
+      { k: 'Lucky Tuesday',     d: 'Tue' },
+      { k: 'MidWeek',           d: 'Wed' },
+      { k: 'Fortune Thursday',  d: 'Thu' },
+      { k: 'Friday Bonanza',    d: 'Fri' },
+      { k: 'National Weekly',   d: 'Sat' },
+      { k: 'Sunday Aseda',      d: 'Sun' }
+    ];
+    
+    const MODELS = [
+      { k: 'gap_cold',    l: 'Cold',     d: 'Longest overdue' },
+      { k: 'frequency',   l: 'Hot',      d: 'Most drawn lately' },
+      { k: 'random',      l: 'Lucky',    d: 'Pure chance' }
+    ];
+    
+    let selGame = GAMES[0].k;
+    let selModel = MODELS[0].k;
+    
+    function q(s) { return document.querySelector(s); }
+    function qa(s) { return document.querySelectorAll(s); }
+    
+    function init() {
+      renderDays();
+      renderModels();
+      loadCounts();
+    }
+    
+    function renderDays() {
+      q('#dayRow').innerHTML = GAMES.map(g => `
+        <button class="day-btn ${g.k===selGame?'active':''}" onclick="pickGame('${g.k}')">
+          ${g.k}
+          <span class="d">${g.d}</span>
+        </button>
+      `).join('');
+    }
+    
+    function renderModels() {
+      q('#modelRow').innerHTML = MODELS.map(m => `
+        <button class="model-btn ${m.k===selModel?'active':''}" onclick="pickModel('${m.k}')">
+          ${m.l}
+          <span class="sub">${m.d}</span>
+        </button>
+      `).join('');
+    }
+    
+    function pickGame(k) { selGame = k; renderDays(); }
+    function pickModel(k) { selModel = k; renderModels(); }
+    
+    async function loadCounts() {
+      try {
+        const r = await fetch(`${API}/games`);
+        const d = await r.json();
+        d.games.forEach(g => {
+          const btn = qa(`[onclick="pickGame('${g.name}')"]`)[0];
+          if (btn) btn.innerHTML = `${g.name}<span class="d">${g.day_of_week} · ${g.total_draws} draws</span>`;
+        });
+      } catch(e) { console.warn('counts failed', e); }
+    }
+    
+    async function generate() {
+      const btn = q('#genBtn'), load = q('#loading'), err = q('#err'), res = q('#result');
+      btn.disabled = true; btn.classList.add('loading'); btn.textContent = 'Thinking…';
+      load.style.display = 'block'; err.style.display = 'none'; res.style.display = 'none';
+      
+      try {
+        const resp = await fetch(`${API}/predict`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ game: selGame, model: selModel, top_k: 7 })
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.detail || 'Failed'); }
+        const data = await resp.json();
+        show(data);
+      } catch(e) {
+        err.textContent = e.message; err.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.classList.remove('loading'); btn.textContent = 'Generate Numbers';
+        load.style.display = 'none';
+      }
+    }
+    
+    function show(d) {
+      res.style.display = 'block'; err.style.display = 'none';
+      q('#resultTitle').textContent = `${d.game} — ${fmtModel(d.model)}`;
+      q('#resultMeta').textContent = `Draw #${d.next_draw_index} • ${d.top_numbers.length} numbers`;
+      
+      q('#numsGrid').innerHTML = d.top_numbers.map((n,i) => `
+        <div class="ball ${n.number>45?'high':'low'}" style="animation-delay:${i*0.04}s">
+          ${String(n.number).padStart(2,'0')}
+        </div>
+      `).join('');
+      
+      const m = d.metrics;
+      q('#stats').innerHTML = `
+        <div class="stat"><div class="stat-val">${m.odd_count}/${m.even_count}</div><div class="stat-label">Odd / Even</div></div>
+        <div class="stat"><div class="stat-val">${m.high_count}/${m.low_count}</div><div class="stat-label">High / Low</div></div>
+        <div class="stat"><div class="stat-val">${m.sum_digits}</div><div class="stat-label">Sum Digits</div></div>
+        <div class="stat"><div class="stat-val">${m.average.toFixed(1)}</div><div class="stat-label">Average</div></div>
+      `;
+      
+      if (d.latest_draw?.numbers) {
+        q('#lastDraw').style.display = 'block';
+        q('#lastBalls').innerHTML = d.latest_draw.numbers.map(n => 
+          `<div class="last-ball ${n>45?'high':'low'}">${n}</div>`
+        ).join('');
+      }
+    }
+    
+    function fmtModel(k) {
+      const m = MODELS.find(x=>x.k===k); return m?m.l:k;
+    }
+    
+    init();
+  </script>
+</body>
+</html>
