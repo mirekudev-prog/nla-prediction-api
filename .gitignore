@@ -1,0 +1,70 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.env
+.venv
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data files (large)
+data/*.csv
+data/*.parquet
+data/*.json
+!data/draws.csv  # Keep the main data file
+
+# Model artifacts
+models/
+*.pkl
+*.joblib
+
+# Vercel
+.vercel/
+
+# Temporary files
+tmp/
+tmp_fixes/
+*.tmp
+
+# Test files
+debug.html
+*.apk
+*.zip
+
+# Large binary files
+*.apk
+*.zip
+release-apk.zip
+app-release.apk
+
+# Cache
+.cache/
+.pytest_cache/
+.mypy_cache/
+
+# Secrets
+*.key
+*.pem
+*.crt
