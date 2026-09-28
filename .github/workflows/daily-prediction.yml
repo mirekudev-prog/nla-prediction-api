@@ -1,0 +1,140 @@
+name: Daily Prediction for Today's Game
+
+on:
+  schedule:
+    # Runs at 6 AM UTC daily (1 AM EST / 6 AM Ghana time - before evening draws)
+    - cron: '0 6 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  daily-prediction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install -q requests
+      
+      - name: Determine today's game
+        id: today
+        run: |
+          # Ghana is UTC+0, so UTC date = Ghana date
+          DAY_OF_WEEK=$(date -u +%A)
+          
+          # Map day to game
+          case $DAY_OF_WEEK in
+            Monday) GAME="Monday Special" ;;
+            Tuesday) GAME="Lucky Tuesday" ;;
+            Wednesday) GAME="MidWeek" ;;
+            Thursday) GAME="Fortune Thursday" ;;
+            Friday) GAME="Friday Bonanza" ;;
+            Saturday) GAME="National Weekly" ;;
+            Sunday) GAME="Sunday Aseda" ;;
+            *) echo "Unexpected day"; exit 1 ;;
+          esac
+          
+          DATE=$(date -u +%Y-%m-%d)
+          echo "game=$GAME" >> $GITHUB_OUTPUT
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+          echo "day=$DAY_OF_WEEK" >> $GITHUB_OUTPUT
+      
+      - name: Generate prediction for today's game
+        id: predict
+        env:
+          API_URL: https://vercel-deploy-phi-umber.vercel.app
+        run: |
+          GAME="${{ steps.today.outputs.game }}"
+          DATE="${{ steps.today.outputs.date }}"
+          
+          # Use the best performing model (gap_cold based on backtests)
+          RESP=$(curl -s -X POST "$API_URL/predict" \
+            -H "Content-Type: application/json" \
+            -d "{\"game\": \"$GAME\", \"model\": \"gap_cold\", \"top_k\": 7}")
+          
+          if echo "$RESP" | grep -q '"detail"'; then
+            echo "❌ Prediction failed: $RESP"
+            exit 1
+          fi
+          
+          NUMBERS=$(echo "$RESP" | python -c "import sys, json; d=json.load(sys.stdin); print(' '.join(str(n['number']) for n in d['top_numbers']))")
+          METRICS=$(echo "$RESP" | python -c "import sys, json; d=json.load(sys.stdin); m=d['metrics']; print(f\"Odd/Even: {m['odd_count']}/{m['even_count']} | High/Low: {m['high_count']}/{m['low_count']} | Sum Digits: {m['sum_digits']} | Avg: {m['average']:.1f} | Spread: {m['spread']}\")")
+          
+          echo "numbers=$NUMBERS" >> $GITHUB_OUTPUT
+          echo "metrics=$METRICS" >> $GITHUB_OUTPUT
+          echo "raw=$RESP" >> $GITHUB_OUTPUT
+      
+      - name: Save prediction to file
+        run: |
+          DATE="${{ steps.today.outputs.date }}"
+          GAME="${{ steps.today.outputs.game }}"
+          DAY="${{ steps.today.outputs.day }}"
+          NUMBERS="${{ steps.predict.outputs.numbers }}"
+          METRICS="${{ steps.predict.outputs.metrics }}"
+          RAW="${{ steps.predict.outputs.raw }}"
+          
+          # Create predictions directory if not exists
+          mkdir -p predictions
+          
+          # Save daily prediction file
+          cat > "predictions/${DATE}.json" << EOF
+          {
+            "date": "${DATE}",
+            "day": "${DAY}",
+            "game": "${GAME}",
+            "model": "gap_cold",
+            "numbers": [$(echo "${NUMBERS}" | sed 's/ /, /g')],
+            "metrics": "${METRICS}",
+            "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          
+          # Also save raw API response for debugging
+          echo "${RAW}" > "predictions/${DATE}_raw.json"
+          
+          echo "✅ Saved prediction for ${GAME} on ${DATE}: ${NUMBERS}"
+      
+      - name: Commit and push predictions
+        run: |
+          DATE="${{ steps.today.outputs.date }}"
+          GAME="${{ steps.today.outputs.game }}"
+          DAY="${{ steps.today.outputs.day }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git add predictions/${DATE}.json predictions/${DATE}_raw.json
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Daily prediction for ${GAME} on ${DATE} (${DAY})"
+            git push
+            echo "✅ Pushed prediction to repository"
+          fi
+      
+      - name: Summary
+        run: |
+          echo "## Daily Prediction Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** ${{ steps.today.outputs.date }} (${{ steps.today.outputs.day }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Game:** ${{ steps.today.outputs.game }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** gap_cold" >> $GITHUB_STEP_SUMMARY
+          echo "**Numbers:** ${{ steps.predict.outputs.numbers }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Metrics:** ${{ steps.predict.outputs.metrics }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Saved to: \`predictions/${{ steps.today.outputs.date }}.json\`" >> $GITHUB_STEP_SUMMARY
