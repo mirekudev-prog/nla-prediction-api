@@ -1,0 +1,108 @@
+name: Daily Full Cycle
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC = 2 AM Ghana (before evening draws)
+  workflow_dispatch:  # Manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  daily-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      API_URL: https://vercel-deploy-phi-umber.vercel.app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -q -r requirements_learner.txt
+
+      - name: Run Daily Cycle
+        id: cycle
+        run: |
+          python -c "
+import sys, os, json
+sys.path.insert(0, 'src')
+
+from continuous_learner import ContinuousLearner
+
+learner = ContinuousLearner()
+result = learner.daily_cycle()
+
+# Print result as JSON for GitHub Actions output
+print('RESULT_JSON:' + json.dumps(result))
+"
+
+      - name: Parse Result
+        id: parse
+        run: |
+          # Extract the JSON from the output
+          RESULT=$(grep '^RESULT_JSON:' <<< "${{ steps.cycle.outputs.stdout }}" | sed 's/^RESULT_JSON://')
+          echo "result=$RESULT" >> $GITHUB_OUTPUT
+
+      - name: Save Prediction
+        run: |
+          DATE="${{ fromJson(steps.parse.outputs.result).date }}"
+          GAME="${{ fromJson(steps.parse.outputs.result).game }}"
+          DAY="${{ fromJson(steps.parse.outputs.result).day }}"
+          NUMBERS="${{ fromJson(steps.parse.outputs.result).numbers }}"
+          
+          mkdir -p predictions
+          cat > "predictions/${{ fromJson(steps.parse.outputs.result).date }}.json" << EOF
+          {
+            "date": "${{ fromJson(steps.parse.outputs.result).date }}",
+            "day": "${{ fromJson(steps.parse.outputs.result).day }}",
+            "game": "${{ fromJson(steps.parse.outputs.result).game }}",
+            "model": "gap_cold",
+            "numbers": ${{ toJson(fromJson(steps.parse.outputs.result).numbers) }},
+            "metrics": "Generated",
+            "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: Commit Predictions
+        run: |
+          DATE="${{ fromJson(steps.parse.outputs.result).date }}"
+          GAME="${{ fromJson(steps.parse.outputs.result).game }}"
+          DAY="${{ fromJson(steps.parse.outputs.result).day }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git add predictions/
+          
+          if ! git diff --staged --quiet; then
+            git commit -m "Daily: ${GAME} prediction for ${DATE} + fetched yesterday's results"
+            git push
+            echo "✅ Pushed"
+          else
+            echo "No changes"
+          fi
+        env:
+          DATE: ${{ fromJson(steps.parse.outputs.result).date }}
+          GAME: ${{ fromJson(steps.parse.outputs.result).game }}
+          DAY: ${{ fromJson(steps.parse.outputs.result).day }}
+
+      - name: Summary
+        run: |
+          echo "## Daily Cycle Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** ${{ fromJson(steps.parse.outputs.result).date }} (${{ fromJson(steps.parse.outputs.result).day }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Game:** ${{ fromJson(steps.parse.outputs.result).game }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Numbers:** ${{ join(fromJson(steps.parse.outputs.result).numbers, ', ') }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Saved to: \`predictions/${{ fromJson(steps.parse.outputs.result).date }}.json\`" >> $GITHUB_STEP_SUMMARY
