@@ -7,7 +7,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 30,
-      "runtime": "python3.11"
+      "runtime": "python@3.11"
     }
   },
   "routes": [
