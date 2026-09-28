@@ -1,0 +1,17 @@
+[Unit]
+Description=NLA 5/90 Continuous Learner
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/nla-prediction
+EnvironmentFile=/home/ubuntu/nla-prediction/.env
+ExecStart=/home/ubuntu/nla-prediction/venv/bin/python continuous_learner.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
