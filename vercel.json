@@ -9,8 +9,7 @@
     }
   ],
   "env": {
-    "DATABASE_URL": "postgresql://neondb_owner:npg_t87VANxdlwDH@ep-broad-resonance-az8yg4fj-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
-    "MODEL_TYPE": "logistic",
+    "MODEL_TYPE": "gap_cold",
     "LOG_LEVEL": "info"
   },
   "github": {
