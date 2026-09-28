@@ -2,7 +2,6 @@
   "version": 2,
   "buildCommand": "pip install -r requirements.txt",
   "devCommand": "python -m uvicorn app:app --host 0.0.0.0 --port 8000",
-  "installCommand": "pip install -r requirements.txt",
   "framework": "fastapi",
   "routes": [
     {
