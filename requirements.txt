@@ -1,4 +1,4 @@
-# Core API dependencies (minimal for Vercel function)
+# Minimal API dependencies (no numpy, no ML)
 fastapi==0.109.0
 uvicorn==0.27.0
 pydantic==2.5.3
@@ -8,23 +8,5 @@ pydantic-settings==2.1.0
 pg8000==1.31.5
 python-dotenv==1.0.0
 
-# Data processing (lightweight)
-numpy==1.26.4
-
 # Vercel ASGI adapter
 mangum==0.17.0
-
-# Optional: for local development only
-# pandas==2.1.4
-# scipy==1.11.4
-# scikit-learn==1.3.2
-# joblib==1.3.2
-
-# Web scraping (for data collection script only)
-# requests==2.31.0
-# beautifulsoup4==4.12.2
-# lxml==4.9.3
-
-# Utilities
-# pyyaml==6.0.1
-# tqdm==4.66.1
