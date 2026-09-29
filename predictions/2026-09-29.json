@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-29",
+  "day": "Tuesday",
+  "game": "Lucky Tuesday",
+  "model": "gap_cold",
+  "numbers": [
+    "24",
+    "46",
+    "47",
+    "50",
+    "51",
+    "54",
+    "83"
+  ],
+  "metrics": "Odd/Even: 3/4 | High/Low: 6/1 | Sum: 355 | Avg: 50.7 | Spread: 59",
+  "raw": {
+    "game": "Lucky Tuesday",
+    "model": "gap_cold",
+    "timestamp": "2026-09-29T21:20:01.759154+00:00",
+    "latest_draw": {
+      "seq_id": 3795,
+      "draw_date": 
