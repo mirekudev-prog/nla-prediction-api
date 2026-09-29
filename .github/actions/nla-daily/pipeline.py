@@ -166,7 +166,12 @@ def main():
     prediction = generate_local_prediction(today_game, prediction_date)
     if not prediction:
         print("❌ Prediction failed")
-        sys.exit(1)
+        # Don't exit - continue with commit if we have predictions
+        print("⚠️ Continuing without new prediction...")
+    else:
+        # Save prediction to repo
+        save_prediction(prediction, today_game, prediction_date)
+    print("✅ Pipeline complete")
 
     # Save prediction to repo
     save_prediction(prediction, today_game, prediction_date)
@@ -179,14 +184,12 @@ def fetch_and_save(game, draw_date):
     import re
     from html.parser import HTMLParser
 
-    # Fetch HTML with better headers to avoid 403
+    # Fetch HTML with headers matching fetch_online.py (worked locally)
     data = {"data[Lottery][name]": game, "data[Lottery][date]": draw_date, "_method": "POST"}
     headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36",
         "Content-Type": "application/x-www-form-urlencoded",
         "Referer": "https://www.ghanayello.com/lottery/results/history",
-        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
     }
     
     try:
@@ -199,41 +202,56 @@ def fetch_and_save(game, draw_date):
         print(f"  ❌ Fetch error: {e}")
         return False
 
-    # Parse
+    # Parse using same logic as fetch_online.py
     class Parser(HTMLParser):
         def __init__(self):
             super().__init__()
             self.in_table = False
             self.in_row = False
             self.in_cell = False
-            self.cell_idx = 0
-            self.current = {}
+            self.cell_index = 0
+            self.current_cell_data = ""
+            self.current_row = {}
             self.draws = []
-            self.row_count = 0
+            self.header_passed = False
+            self.capture_number = False
         def handle_starttag(self, tag, attrs):
-            attrs = dict(attrs)
-            if tag == "table": self.in_table = True
+            attrs_dict = dict(attrs)
+            if tag == "table":
+                self.in_table = True
+                self.header_passed = False
             elif tag == "tr" and self.in_table:
-                self.in_row = True; self.cell_idx = 0; self.current = {}
-            elif tag in ("td", "th") and self.in_row:
+                self.in_row = True
+                self.cell_index = 0
+                self.current_row = {}
+            elif tag == "td" and self.in_row:
                 self.in_cell = True
-                self.current[f"cell{self.cell_idx}_title"] = attrs.get("title", "")
-                self.current[f"cell{self.cell_idx}_data"] = ""
+                self.current_cell_data = ""
+                self.current_row[f"cell{self.cell_index}_title"] = attrs_dict.get("title", "")
             elif tag == "div" and self.in_cell:
-                cls = attrs.get("class", "")
-                if "lotto_no_r" in cls or "lotto_no_w" in cls:
-                    self.current.setdefault("numbers", []).append("")
+                classes = attrs_dict.get("class", "")
+                if "lotto_no_r" in classes:
+                    self.current_row.setdefault("numbers", []).append("")
+                    self.capture_number = True
         def handle_endtag(self, tag):
-            if tag in ("td", "th") and self.in_cell:
-                self.in_cell = False; self.cell_idx += 1
+            if tag == "td" and self.in_cell:
+                self.in_cell = False
+                self.current_row[f"cell{self.cell_index}_data"] = self.current_cell_data.strip()
+                self.cell_index += 1
+                self.capture_number = False
             elif tag == "tr" and self.in_row:
                 self.in_row = False
-                if self.row_count > 0 and self.current: self.draws.append(self.current)
-                self.row_count += 1
-            elif tag == "table": self.in_table = False
+                if self.header_passed and self.current_row:
+                    self.draws.append(self.current_row)
+                self.header_passed = True
+            elif tag == "table":
+                self.in_table = False
         def handle_data(self, data):
             if self.in_cell:
-                self.current[f"cell{self.cell_idx}_data"] = (self.current.get(f"cell{self.cell_idx}_data", "") + data).strip()
+                self.current_cell_data += data
+            if self.capture_number and self.in_cell and "numbers" in self.current_row:
+                if self.current_row["numbers"]:
+                    self.current_row["numbers"][-1] += data.strip()
 
     parser = Parser()
     parser.feed(resp.text)
@@ -242,11 +260,13 @@ def fetch_and_save(game, draw_date):
         print(f"  ⚠️ No draw data found for {game} {draw_date}")
         return False
 
+    # Use cell DATA (content), not title attributes - matches fetch_online.py
     row = parser.draws[0]
-    win_title = row.get("cell2_title", "")
+    date_str = row.get("cell0_data", "")
+    numbers_title = row.get("cell2_title", "")
     mach_title = row.get("cell3_title", "")
     
-    win_m = re.search(r"Winning Numbers\s+([\d\-]+)", win_title)
+    win_m = re.search(r"Winning Numbers\s+([\d\-]+)", numbers_title)
     mach_m = re.search(r"Machine Numbers\s+([\d\-]+)", mach_title)
     
     if not win_m:
