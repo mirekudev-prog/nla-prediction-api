@@ -339,7 +339,7 @@ def generate_local_prediction(game, draw_date):
             latest = draws[-1]
             latest_draw = {
                 "seq_id": latest["seq_id"],
-                "draw_date": latest["draw_date"],
+                "draw_date": str(latest["draw_date"]),
                 "numbers": [latest["win_n1"], latest["win_n2"], latest["win_n3"], latest["win_n4"], latest["win_n5"]],
                 "game": game
             }
