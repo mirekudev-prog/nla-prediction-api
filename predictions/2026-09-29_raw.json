@@ -1,0 +1,65 @@
+{
+  "game": "Lucky Tuesday",
+  "model": "gap_cold",
+  "timestamp": "2026-09-29T21:24:33.194683+00:00",
+  "latest_draw": {
+    "seq_id": 3795,
+    "draw_date": "2026-09-22",
+    "numbers": [
+      60,
+      1,
+      39,
+      81,
+      76
+    ],
+    "game": "Lucky Tuesday"
+  },
+  "next_draw_index": 433,
+  "top_numbers": [
+    {
+      "number": 24,
+      "probability": 0.14285714285714285,
+      "rank": 1
+    },
+    {
+      "number": 46,
+      "probability": 0.14285714285714285,
+      "rank": 2
+    },
+    {
+      "number": 47,
+      "probability": 0.14285714285714285,
+      "rank": 3
+    },
+    {
+      "number": 50,
+      "probability": 0.14285714285714285,
+      "rank": 4
+    },
+    {
+      "number": 51,
+      "probability": 0.14285714285714285,
+      "rank": 5
+    },
+    {
+      "number": 54,
+      "probability": 0.14285714285714285,
+      "rank": 6
+    },
+    {
+      "number": 83,
+      "probability": 0.14285714285714285,
+      "rank": 7
+    }
+  ],
+  "metrics": {
+    "odd_count": 3,
+    "even_count": 4,
+    "high_count": 6,
+    "low_count": 1,
+    "sum_digits": 355,
+    "average": 50.714285714285715,
+    "spread": 59
+  },
+  "disclaimer": "This is a statistical prediction for entertainment purposes only. Please verify results with official NLA sources."
+}
