@@ -5,11 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Ghana NLA 5/90 lottery predictions - simple, free, no nonsense">
   <title>NLA 5/90 Predictions</title>
-  <meta name="api-base" content="https://vercel-deploy-phi-umber.vercel.app">
   <style>
-    /* ── reset ── */
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
     body {
       font-family: system-ui, -apple-system, sans-serif;
       background: #faf9f6;
@@ -18,371 +15,278 @@
       padding: 24px 16px;
       line-height: 1.5;
     }
-    
     .wrap { max-width: 420px; margin: 0 auto; }
-    
-    /* ── header ── */
     header {
       text-align: center;
       padding: 16px 0 8px;
     }
+    h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; color: #0f172a; margin-bottom: 4px; }
+    .tagline { font-size: 14px; color: #64748b; font-weight: 400; }
     
-    h1 {
-      font-size: 28px;
-      font-weight: 600;
-      letter-spacing: -0.5px;
-      color: #0f172a;
-      margin-bottom: 4px;
+    /* ── time banner ── */
+    .time-banner {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; background: #f0f9ff; border-radius: 8px; margin-bottom: 16px;
+      font-size: 12px; color: #0369a1;
+    }
+    .time-banner .badge {
+      background: #0ea5e9; color: #fff; padding: 2px 8px; border-radius: 999px; font-weight: 600;
     }
     
-    .tagline {
-      font-size: 14px;
-      color: #64748b;
-      font-weight: 400;
+    /* ── yesterday's draw ── */
+    .yesterday {
+      background: #fff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 16px;
     }
+    .yesterday h3 { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .yesterday .balls { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+    .yesterday .ball { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+    .yesterday .ball.win.low { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+    .yesterday .ball.win.high { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+    .yesterday .ball.mach { background: #64748b; border: 2px dashed #cbd5e1; font-size: 10px; }
+    .yesterday .labels { display: flex; justify-content: center; gap: 16px; font-size: 10px; color: #94a3b8; }
+    .yesterday .labels span { display: flex; align-items: center; gap: 4px; }
+    .yesterday .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .yesterday .dot.win.low { background: #f97316; }
+    .yesterday .dot.win.high { background: #ef4444; }
     
-    /* ── game picker ── */
-    .day-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: center;
-      margin: 24px 0 16px;
+    /* ── today's prediction ── */
+    .prediction {
+      background: #fff; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 16px;
     }
+    .prediction h3 { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .prediction .balls { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; }
+    .prediction .ball { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+    .prediction .ball.low { background: #f97316; }
+    .prediction .ball.high { background: #ef4444; }
+    .prediction .stats { display: flex; gap: 16px; justify-content: center; margin-bottom: 12px; }
+    .prediction .stat { text-align: center; }
+    .prediction .stat-val { font-size: 18px; font-weight: 600; color: #0f172a; display: block; }
+    .prediction .stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+    .prediction .meta { font-size: 12px; color: #64748b; text-align: center; margin-top: 8px; }
+    .prediction .loading { text-align: center; color: #64748b; font-style: italic; }
+    .prediction .error { background: #fee2e2; border: 1px solid #fecaca; color: #dc2626; padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; }
     
-    .day-btn {
-      flex: 1;
-      min-width: 72px;
-      padding: 10px 6px;
-      border: 2px solid #e2e8f0;
-      border-radius: 10px;
-      background: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      color: #334155;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      text-align: center;
+    /* ── game selector ── */
+    .games { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; }
+    .game-btn { 
+      flex: 1; min-width: 60px; padding: 8px 12px; border: 2px solid #e2e8f0; 
+      border-radius: 8px; background: #fff; color: #475569; font-size: 13px; 
+      cursor: pointer; transition: all 0.2s; font-weight: 500;
     }
+    .game-btn:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .game-btn.active { border-color: #10b981; background: #ecfdf5; color: #059669; }
     
-    .day-btn:hover { border-color: #94a3b8; color: #475569; }
-    .day-btn.active {
-      border-color: #0ea5e9;
-      background: #f0f9ff;
-      color: #0ea5e9;
-    }
-    .day-btn .d { display: block; font-size: 9px; font-weight: 400; opacity: 0.7; margin-top: 2px; }
+    /* ── loading states ── */
+    .loading { text-align: center; color: #64748b; font-style: italic; padding: 20px; }
+    .error { background: #fee2e2; border: 1px solid #fecaca; color: #dc2626; padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; }
     
-    /* ── model picker ── */
-    .model-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-    
-    .model-btn {
-      flex: 1;
-      padding: 12px 8px;
-      border: 2px solid #e2e8f0;
-      border-radius: 10px;
-      background: #fff;
-      font-size: 13px;
-      font-weight: 600;
-      color: #334155;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .model-btn:hover { border-color: #94a3b8; color: #475569; }
-    .model-btn.active {
-      border-color: #22c55e;
-      background: #f0fdf4;
-      color: #166534;
-    }
-    .model-btn .sub { display: block; font-size: 10px; font-weight: 400; opacity: 0.7; margin-top: 4px; }
-    
-    /* ── generate button ── */
-    .gen-btn {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 10px;
-      background: #0f172a;
-      color: #fff;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.08s, box-shadow 0.15s;
-    }
-    .gen-btn:active { transform: scale(0.985); }
-    .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .gen-btn.loading { background: #64748b; }
-    
-    /* ── results ── */
-    .result { display: none; margin-top: 20px; }
-    
-    .result-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #e2e8f0;
-      margin-bottom: 16px;
-    }
-    
-    .result-title { font-size: 16px; font-weight: 600; color: #0f172a; }
-    .result-meta { font-size: 11px; color: #94a3b8; }
-    
-    /* ── numbers ── */
-    .nums {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 8px;
-      margin-bottom: 18px;
-    }
-    
-    .ball {
-      aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      font-size: 17px;
-      font-weight: 700;
-      color: #fff;
-      box-shadow: 0 2px 6px rgba(15,23,42,0.15);
-      animation: pop 0.3s ease-out backwards;
-    }
-    @keyframes pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    .ball:nth-child(1) { animation-delay: 0.04s; }
-    .ball:nth-child(2) { animation-delay: 0.08s; }
-    .ball:nth-child(3) { animation-delay: 0.12s; }
-    .ball:nth-child(4) { animation-delay: 0.16s; }
-    .ball:nth-child(5) { animation-delay: 0.2s; }
-    .ball:nth-child(6) { animation-delay: 0.24s; }
-    .ball:nth-child(7) { animation-delay: 0.28s; }
-    .ball.low  { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
-    .ball.high { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
-    
-    /* ── stats ── */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      padding: 14px;
-      background: #f8fafc;
-      border-radius: 10px;
-      margin-bottom: 16px;
-    }
-    .stat { text-align: center; }
-    .stat-val { font-size: 19px; font-weight: 700; color: #0f172a; }
-    .stat-label { font-size: 9px; color: #94a3b8; text-transform: uppercase; margin-top: 3px; letter-spacing: 0.3px; }
-    
-    /* ── last draw ── */
-    .last {
-      padding: 14px;
-      background: #eff6ff;
-      border-radius: 10px;
-      margin-bottom: 16px;
-    }
-    .last-title { font-size: 11px; color: #0ea5e9; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .last-balls { display: flex; gap: 5px; flex-wrap: wrap; }
-    .last-ball {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      color: #fff;
-    }
-    .last-ball.low  { background: #f97316; }
-    .last-ball.high { background: #ef4444; }
-    
-    /* ── footer ── */
-    footer {
-      font-size: 10px;
-      color: #94a3b8;
-      text-align: center;
-      margin-top: 20px;
-      line-height: 1.6;
-    }
-    
-    /* ── loading ── */
-    .loading { display: none; text-align: center; padding: 20px; }
-    .spinner {
-      width: 28px; height: 28px;
-      border: 3px solid #e2e8f0;
-      border-top-color: #0ea5e9;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 10px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    
-    /* ── error ── */
-    .err { display: none; padding: 12px 16px; background: #fef2f2; border-radius: 10px; color: #dc2626; font-size: 13px; text-align: center; }
-    
-    @media (max-width: 380px) {
-      .nums { gap: 5px; }
-      .ball { font-size: 15px; }
-      .stats { gap: 6px; }
+    /* ── responsive ── */
+    @media (max-width: 480px) {
+      .time-banner { flex-direction: column; gap: 8px; text-align: center; }
+      .games .game-btn { flex: 1; min-width: 50px; font-size: 12px; padding: 6px 8px; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>NLA 5/90</h1>
-      <p class="tagline">Ghana National Lottery · free predictions</p>
+      <h1>NLA 5/90 Predictions</h1>
+      <p class="tagline">Ghana National Lottery Authority</p>
     </header>
     
-    <div class="day-row" id="dayRow"></div>
-    
-    <div class="model-row" id="modelRow"></div>
-    
-    <button class="gen-btn" id="genBtn" onclick="generate()">Generate Numbers</button>
-    
-    <div class="loading" id="loading"><div class="spinner"></div><p>Thinking…</p></div>
-    <div class="err" id="err"></div>
-    
-    <div class="result" id="result">
-      <div class="result-head">
-        <div class="result-title" id="resultTitle">Prediction</div>
-        <div class="result-meta" id="resultMeta">Model · Game</div>
-      </div>
-      
-      <div class="nums" id="numsGrid"></div>
-      
-      <div class="stats" id="stats"></div>
-      
-      <div class="last" id="lastDraw" style="display:none;">
-        <div class="last-title">Last actual draw</div>
-        <div class="last-balls" id="lastBalls"></div>
-      </div>
+    <!-- Time Banner -->
+    <div class="time-banner" id="timeBanner">
+      <span>🇬🇭 Ghana · Loading...</span>
+      <span class="badge">Today: Loading...</span>
     </div>
     
-    <footer>
-      For fun only · not financial advice · verify with official NLA sources
-    </footer>
+    <!-- Yesterday's Draw -->
+    <div class="yesterday" id="yesterdayCard" style="display:none;">
+      <h3>📅 Yesterday's Draw <span id="yesterdayGame"></span></h3>
+      <div class="balls" id="yesterdayBalls"></div>
+    </div>
+    
+    <!-- Today's Prediction -->
+    <div class="prediction" id="predictionCard" style="display:none;">
+      <h3>🔮 Today's Prediction <span id="predictionGame"></span></h3>
+      <div class="balls" id="predictionBalls"></div>
+      <div class="stats" id="predictionStats"></div>
+      <div class="meta" id="predictionMeta"></div>
+      <div class="loading" id="predictionLoading" style="display:none;">Loading prediction...</div>
+      <div class="error" id="predictionError" style="display:none;"></div>
+    </div>
+    
+    <!-- Game Selector -->
+    <div class="games" id="gamesContainer"></div>
   </div>
 
   <script>
-    const API = document.querySelector('meta[name="api-base"]')?.content || 'https://vercel-deploy-phi-umber.vercel.app';
+    // ── Constants ──
+    const DAY_TO_GAME = {
+      Mon: "Monday Special",
+      Tue: "Lucky Tuesday", 
+      Wed: "MidWeek",
+      Thu: "Fortune Thursday",
+      Fri: "Friday Bonanza",
+      Sat: "National Weekly",
+      Sun: "Sunday Aseda"
+    };
     
-    const GAMES = [
-      { k: 'Monday Special',    d: 'Mon' },
-      { k: 'Lucky Tuesday',     d: 'Tue' },
-      { k: 'MidWeek',           d: 'Wed' },
-      { k: 'Fortune Thursday',  d: 'Thu' },
-      { k: 'Friday Bonanza',    d: 'Fri' },
-      { k: 'National Weekly',   d: 'Sat' },
-      { k: 'Sunday Aseda',      d: 'Sun' }
-    ];
+    const GITHUB_RAW = "https://raw.githubusercontent.com/mirekudev-prog/nla-prediction-api/master/predictions";
     
-    const MODELS = [
-      { k: 'gap_cold',    l: 'Cold',     d: 'Longest overdue' },
-      { k: 'frequency',   l: 'Hot',      d: 'Most drawn lately' },
-      { k: 'random',      l: 'Lucky',    d: 'Pure chance' }
-    ];
+    // ── DOM Elements ──
+    const q = (sel) => document.querySelector(sel);
+    const qs = (sel) => document.querySelectorAll(sel);
     
-    let selGame = GAMES[0].k;
-    let selModel = MODELS[0].k;
+    // ── Time-aware helpers (Ghana = UTC) ──
+    function getTodayGame() { return DAY_TO_GAME[new Date().toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })]; }
+    function getYesterdayGame() { 
+      const d = new Date(); d.setDate(d.getDate() - 1); 
+      return DAY_TO_GAME[d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })]; 
+    }
+    function getTodayDateStr() { return new Date().toISOString().split('T')[0]; }
+    function getYesterdayDateStr() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; }
+    function fmtDate(dateStr) { return new Date(dateStr + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); }
     
-    function q(s) { return document.querySelector(s); }
-    function qa(s) { return document.querySelectorAll(s); }
+    // ── State ──
+    let selGame = getTodayGame(); // Currently selected game for tabs
     
-    function init() {
-      renderDays();
-      renderModels();
-      loadCounts();
+    // ── Initialization ──
+    async function init() {
+      renderTimeBanner();
+      renderGameTabs();
+      await loadYesterdayDraw();
+      await loadTodaysPredictionFromGitHub();
     }
     
-    function renderDays() {
-      q('#dayRow').innerHTML = GAMES.map(g => `
-        <button class="day-btn ${g.k===selGame?'active':''}" onclick="pickGame('${g.k}')">
-          ${g.k}
-          <span class="d">${g.d}</span>
-        </button>
-      `).join('');
+    // ── Render time banner ──
+    function renderTimeBanner() {
+      const todayGame = getTodayGame();
+      const today = new Date();
+      q('#timeBanner').innerHTML = `
+        <span>🇬🇭 Ghana · ${today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}</span>
+        <span class="badge">Today: ${todayGame}</span>
+      `;
     }
     
-    function renderModels() {
-      q('#modelRow').innerHTML = MODELS.map(m => `
-        <button class="model-btn ${m.k===selModel?'active':''}" onclick="pickModel('${m.k}')">
-          ${m.l}
-          <span class="sub">${m.d}</span>
-        </button>
-      `).join('');
-    }
-    
-    function pickGame(k) { selGame = k; renderDays(); }
-    function pickModel(k) { selModel = k; renderModels(); }
-    
-    async function loadCounts() {
-      try {
-        const r = await fetch(`${API}/games`);
-        const d = await r.json();
-        d.games.forEach(g => {
-          const btn = qa(`[onclick="pickGame('${g.name}')"]`)[0];
-          if (btn) btn.innerHTML = `${g.name}<span class="d">${g.day_of_week} · ${g.total_draws} draws</span>`;
+    // ── Render game tabs ──
+    function renderGameTabs() {
+      const gamesContainer = q('#gamesContainer');
+      const games = Object.values(DAY_TO_GAME);
+      
+      gamesContainer.innerHTML = games.map(game => 
+        `<button class="game-btn ${game === selGame ? 'active' : ''}" data-game="${game}">${game}</button>`
+      ).join('');
+      
+      qs('.game-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const game = btn.getAttribute('data-game');
+          if (game && game !== selGame) {
+            selGame = game;
+            updateActiveTab();
+            loadYesterdayDraw();
+            loadTodaysPredictionFromGitHub();
+          }
         });
-      } catch(e) { console.warn('counts failed', e); }
+      });
     }
     
-    async function generate() {
-      const btn = q('#genBtn'), load = q('#loading'), err = q('#err'), res = q('#result');
-      btn.disabled = true; btn.classList.add('loading'); btn.textContent = 'Thinking…';
-      load.style.display = 'block'; err.style.display = 'none'; res.style.display = 'none';
+    function updateActiveTab() {
+      qs('.game-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-game') === selGame);
+      });
+    }
+    
+    // ── Load yesterday's draw from Neon DB via API ──
+    async function loadYesterdayDraw() {
+      const yesterdayGame = getYesterdayGame();
+      const yesterdayDate = getYesterdayDateStr();
       
       try {
-        const resp = await fetch(`${API}/predict`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ game: selGame, model: selModel, top_k: 7 })
-        });
-        if (!resp.ok) { const e = await resp.json(); throw new Error(e.detail || 'Failed'); }
-        const data = await resp.json();
-        show(data);
+        // In a real implementation, this would fetch from your API
+        // For now, we'll simulate or skip since we're focusing on the prediction display
+        // The actual draw data comes from the pipeline and is stored in the predictions folder
+        // But for yesterday's draw, we'd need to fetch it from the DB or API
+        
+        // Since we're simplifying and focusing on the prediction display as requested,
+        // we'll hide this section for now or implement a basic version
+        q('#yesterdayCard').style.display = 'none';
+        
+        // TODO: Implement actual yesterday's draw loading from API if needed
+        // For now, we'll focus on the core prediction display
+        
       } catch(e) {
-        err.textContent = e.message; err.style.display = 'block';
-      } finally {
-        btn.disabled = false; btn.classList.remove('loading'); btn.textContent = 'Generate Numbers';
-        load.style.display = 'none';
+        console.warn('yesterday draw failed', e);
+        q('#yesterdayCard').style.display = 'none';
       }
     }
     
-    function show(d) {
-      res.style.display = 'block'; err.style.display = 'none';
-      q('#resultTitle').textContent = `${d.game} — ${fmtModel(d.model)}`;
-      q('#resultMeta').textContent = `Draw #${d.next_draw_index} • ${d.top_numbers.length} numbers`;
+    // ── Load today's prediction from GitHub repo ──
+    async function loadTodaysPredictionFromGitHub() {
+      const todayGame = getTodayGame();
+      const todayDate = getTodayDateStr();
+      selGame = todayGame;
+      renderGameTabs();
       
-      q('#numsGrid').innerHTML = d.top_numbers.map((n,i) => `
-        <div class="ball ${n.number>45?'high':'low'}" style="animation-delay:${i*0.04}s">
-          ${String(n.number).padStart(2,'0')}
+      // Show loading state
+      q('#predictionLoading').style.display = 'block';
+      q('#predictionError').style.display = 'none';
+      q('#predictionCard').style.display = 'none';
+      
+      try {
+        const r = await fetch(`${GITHUB_RAW}/${todayDate}.json`);
+        if (!r.ok) {
+          // Prediction not yet committed (GitHub Actions hasn't run or hasn't pushed)
+          q('#predictionError').textContent = `Prediction for ${todayDate} not yet available. GitHub Actions runs at 2 AM UTC.`;
+          q('#predictionError').style.display = 'block';
+          return;
+        }
+        const pred = await r.json();
+        showPrediction(pred);
+      } catch(e) {
+        console.warn('GitHub prediction load failed', e);
+        q('#predictionError').textContent = 'Failed to load prediction. Please try again later.';
+        q('#predictionError').style.display = 'block';
+      } finally {
+        q('#predictionLoading').style.display = 'none';
+      }
+    }
+    
+    // ── Show prediction ──
+    function showPrediction(pred) {
+      // Hide error, show card
+      q('#predictionError').style.display = 'none';
+      q('#predictionCard').style.display = 'block';
+      
+      // Set game title
+      q('#predictionGame').textContent = `${pred.game}`;
+      
+      // Show numbers
+      const numbers = pred.numbers || [];
+      q('#predictionBalls').innerHTML = numbers.map((n, i) => `
+        <div class="ball ${n>45?'high':'low'}" style="animation-delay:${i*0.04}s">
+          ${String(n).padStart(2,'0')}
         </div>
       `).join('');
       
-      const m = d.metrics;
-      q('#stats').innerHTML = `
-        <div class="stat"><div class="stat-val">${m.odd_count}/${m.even_count}</div><div class="stat-label">Odd / Even</div></div>
-        <div class="stat"><div class="stat-val">${m.high_count}/${m.low_count}</div><div class="stat-label">High / Low</div></div>
-        <div class="stat"><div class="stat-val">${m.sum_digits}</div><div class="stat-label">Sum Digits</div></div>
-        <div class="stat"><div class="stat-val">${m.average.toFixed(1)}</div><div class="stat-label">Average</div></div>
-      `;
-      
-      if (d.latest_draw?.numbers) {
-        q('#lastDraw').style.display = 'block';
-        q('#lastBalls').innerHTML = d.latest_draw.numbers.map(n => 
-          `<div class="last-ball ${n>45?'high':'low'}">${n}</div>`
-        ).join('');
+      // Show metrics
+      const metrics = pred.metrics || {};
+      if (metrics && Object.keys(metrics).length > 0) {
+        q('#predictionStats').innerHTML = `
+          <div class="stat"><div class="stat-val">${metrics.odd_count}/${metrics.even_count}</div><div class="stat-label">Odd / Even</div></div>
+          <div class="stat"><div class="stat-val">${metrics.high_count}/${metrics.low_count}</div><div class="stat-label">High / Low</div></div>
+          <div class="stat"><div class="stat-val">${metrics.sum_digits}</div><div class="stat-label">Sum Digits</div></div>
+          <div class="stat"><div class="stat-val">${metrics.average?.toFixed(1) || metrics.average}</div><div class="stat-label">Average</div></div>
+        `;
+      } else {
+        q('#predictionStats').innerHTML = '';
       }
+      
+      // Show meta info
+      q('#predictionMeta').textContent = `Generated at ${new Date(pred.generated_at || Date.now()).toLocaleTimeString('en-GB', { timeZone: 'UTC' })}`;
     }
     
-    function fmtModel(k) {
-      const m = MODELS.find(x=>x.k===k); return m?m.l:k;
-    }
-    
+    // ── Initialize on load ──
     init();
   </script>
 </body>
