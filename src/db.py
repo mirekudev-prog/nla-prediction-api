@@ -68,11 +68,19 @@ def init_db():
             game_name VARCHAR(50) NOT NULL,
             day_of_week VARCHAR(15) NOT NULL,
             draw_date DATE NOT NULL,
-            n1 INT NOT NULL,
-            n2 INT NOT NULL,
-            n3 INT NOT NULL,
-            n4 INT NOT NULL,
-            n5 INT NOT NULL,
+            win_n1 INT NOT NULL,
+            win_n2 INT NOT NULL,
+            win_n3 INT NOT NULL,
+            win_n4 INT NOT NULL,
+            win_n5 INT NOT NULL,
+            win_n6 INT DEFAULT 0,
+            mach_n1 INT,
+            mach_n2 INT,
+            mach_n3 INT,
+            mach_n4 INT,
+            mach_n5 INT,
+            mach_n6 INT,
+            event_id VARCHAR(100),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -108,16 +116,18 @@ def seed_from_csv(csv_path="data/draws.csv"):
         for r in reader:
             draw_date = r.get("draw_date")
             if not draw_date:
-                # Backfill: compute date from seq_id and day_of_week
-                # This is a fallback for old CSV without dates
                 draw_date = None
             rows.append((int(r["seq_id"]), r["game_name"], r["day_of_week"], draw_date,
-                         int(r["n1"]), int(r["n2"]), int(r["n3"]), int(r["n4"]), int(r["n5"])))
+                         int(r["n1"]), int(r["n2"]), int(r["n3"]), int(r["n4"]), int(r["n5"]),
+                         0, None, None, None, None, None, None))
     
     # Bulk insert
     cursor.executemany("""
-        INSERT INTO draws (seq_id, game_name, day_of_week, draw_date, n1, n2, n3, n4, n5)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO draws (seq_id, game_name, day_of_week, draw_date,
+            win_n1, win_n2, win_n3, win_n4, win_n5, win_n6,
+            mach_n1, mach_n2, mach_n3, mach_n4, mach_n5, mach_n6,
+            event_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """, rows)
     
     conn.commit()
@@ -134,12 +144,18 @@ def get_draws(game_name=None):
     
     if game_name:
         cursor.execute("""
-            SELECT seq_id, game_name, day_of_week, draw_date, n1, n2, n3, n4, n5
+            SELECT seq_id, game_name, day_of_week, draw_date,
+                   win_n1, win_n2, win_n3, win_n4, win_n5, win_n6,
+                   mach_n1, mach_n2, mach_n3, mach_n4, mach_n5, mach_n6,
+                   event_id
             FROM draws WHERE game_name = %s ORDER BY seq_id ASC
         """, (game_name,))
     else:
         cursor.execute("""
-            SELECT seq_id, game_name, day_of_week, draw_date, n1, n2, n3, n4, n5
+            SELECT seq_id, game_name, day_of_week, draw_date,
+                   win_n1, win_n2, win_n3, win_n4, win_n5, win_n6,
+                   mach_n1, mach_n2, mach_n3, mach_n4, mach_n5, mach_n6,
+                   event_id
             FROM draws ORDER BY seq_id ASC
         """)
     
