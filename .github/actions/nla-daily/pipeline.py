@@ -183,9 +183,19 @@ def fetch_and_save(game, draw_date):
     import requests
     import re
     from html.parser import HTMLParser
+    from datetime import datetime
+    
+    # Convert draw_date from YYYY-MM-DD to YYYY-MM for the site request
+    # The site only accepts year-month in the date field
+    try:
+        dt = datetime.strptime(draw_date, '%Y-%m-%d')
+        year_month = dt.strftime('%Y-%m')
+    except ValueError:
+        print(f"  ❌ Invalid date format: {draw_date}")
+        return False
 
     # Fetch HTML with headers matching fetch_online.py (worked locally)
-    data = {"data[Lottery][name]": game, "data[Lottery][date]": draw_date, "_method": "POST"}
+    data = {"data[Lottery][name]": game, "data[Lottery][date]": year_month, "_method": "POST"}
     headers = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36",
         "Content-Type": "application/x-www-form-urlencoded",
@@ -202,7 +212,7 @@ def fetch_and_save(game, draw_date):
         print(f"  ❌ Fetch error: {e}")
         return False
 
-    # Parse using same logic as fetch_online.py
+    # Parse the response to find all draws for this game in this month
     class Parser(HTMLParser):
         def __init__(self):
             super().__init__()
@@ -257,20 +267,43 @@ def fetch_and_save(game, draw_date):
     parser.feed(resp.text)
 
     if not parser.draws:
-        print(f"  ⚠️ No draw data found for {game} {draw_date}")
+        print(f"  ⚠️ No draw data found for {game} in {year_month}")
         return False
 
-    # Use cell DATA (content), not title attributes - matches fetch_online.py
-    row = parser.draws[0]
-    date_str = row.get("cell0_data", "")
-    numbers_title = row.get("cell2_title", "")
-    mach_title = row.get("cell3_title", "")
+    # Find the draw that matches our target date
+    target_row = None
+    for row in parser.draws:
+        # Extract date from cell0_data (format: "29 September, 2026 - Tuesday")
+        date_str = row.get("cell0_data", "")
+        if not date_str:
+            continue
+        try:
+            # Parse the date string to compare with our target
+            # Remove the day of week part if present
+            date_only = date_str.split(' -')[0]
+            row_dt = datetime.strptime(date_only, '%d %B, %Y')
+            row_date_str = row_dt.strftime('%Y-%m-%d')
+            if row_date_str == draw_date:
+                target_row = row
+                break
+        except:
+            # If we can't parse the date, skip this row
+            continue
+    
+    if not target_row:
+        print(f"  ⚠️ No draw found for {game} on {draw_date} in {year_month} data")
+        return False
+
+    # Extract winning and machine numbers from the matched row
+    # Use title attributes as they contain the formatted numbers
+    numbers_title = target_row.get("cell2_title", "")
+    mach_title = target_row.get("cell3_title", "")
     
     win_m = re.search(r"Winning Numbers\s+([\d\-]+)", numbers_title)
     mach_m = re.search(r"Machine Numbers\s+([\d\-]+)", mach_title)
     
     if not win_m:
-        print(f"  ⚠️ No winning numbers found")
+        print(f"  ⚠️ No winning numbers found for {game} on {draw_date}")
         return False
 
     win = "-".join(win_m.group(1).split("-")[:5])
@@ -279,7 +312,6 @@ def fetch_and_save(game, draw_date):
     # Save to Neon
     save_to_neon(game, draw_date, win, mach)
     return True
-
 
 def save_to_neon(game, draw_date, win, mach):
     import pg8000
